@@ -8,13 +8,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"syscall"
 	"text/template"
 )
 
 const profileTemplate = `var profile = {{.}};`
 
 type BuildConfig struct {
-	RemoveUncompressed bool `json:"removeUncompressed,omitempty"` // Remove uncompressed js files after build
+	RemoveUncompressed    bool `json:"removeUncompressed,omitempty"` // Remove uncompressed js files after build
+	RemoveConsoleStripped bool `json:"removeConsoleStripped,omitempty"`
 
 	BasePath    string           `json:"basePath"`
 	ReleaseDir  string           `json:"releaseDir"`
@@ -56,37 +59,40 @@ func (f Feature) MarshalJSON() ([]byte, error) {
 }
 
 func (c *Config) generateBuildProfile(name string) (profileFullPath string, err error) {
-	if bc, ok := c.BuildConfigs[name]; !ok {
+	bc, ok := c.BuildConfigs[name]
+	if !ok {
 		return "", errors.New("No build config found with name '" + name + "'")
-	} else {
-		if bc.Action == "" {
-			bc.Action = "release"
-		}
-
-		profilePath := c.SrcDir + "/profiles/"
-		os.MkdirAll(profilePath, 0754)
-
-		profileFullPath = profilePath + name + ".profile.js"
-
-		bc.BasePath = "../"
-
-		if bc.ReleaseDir, err = filepath.Rel(c.SrcDir+`/`+bc.BasePath+"empty", c.DestDir); err != nil {
-			return "", err
-		}
-
-		if j, err := json.Marshal(bc); err != nil {
-			return "", err
-		} else {
-			if f, err := os.OpenFile(profileFullPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664); err != nil {
-				return "", err
-			} else {
-				t := template.Must(template.New("profileTemplate").Parse(profileTemplate))
-				err = t.Execute(f, string(j))
-			}
-		}
-
-		return profileFullPath, err
 	}
+
+	if bc.Action == "" {
+		bc.Action = "release"
+	}
+
+	profilePath := c.SrcDir + "/profiles/"
+	os.MkdirAll(profilePath, 0754)
+
+	profileFullPath = profilePath + name + ".profile.js"
+
+	bc.BasePath = "../"
+
+	if bc.ReleaseDir, err = filepath.Rel(c.SrcDir+`/`+bc.BasePath+"__fakeFile__", c.DestDir); err != nil {
+		return "", err
+	}
+
+	j, err := json.Marshal(bc)
+	if err != nil {
+		return "", err
+	}
+
+	f, err := os.OpenFile(profileFullPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664)
+	if err != nil {
+		return "", err
+	}
+
+	t := template.Must(template.New("profileTemplate").Parse(profileTemplate))
+	err = t.Execute(f, string(j))
+
+	return profileFullPath, err
 }
 
 func build(c *Config, names []string) (err error) {
@@ -109,6 +115,40 @@ func build(c *Config, names []string) (err error) {
 		if err = executeBuildProfile(c, profilePath); err != nil {
 			return
 		}
+
+		bc, _ := c.BuildConfigs[n]
+
+		var removePattern, sep string
+
+		if bc.RemoveUncompressed {
+			removePattern += sep + `uncompressed`
+			sep = `|`
+		}
+
+		if bc.RemoveConsoleStripped {
+			removePattern += sep + `consoleStripped`
+			sep = `|`
+		}
+
+		filepath.Walk(c.DestDir, func(path string, f os.FileInfo, err error) (_err error) {
+			originPath := c.SrcDir + path[len(c.DestDir):]
+
+			if fi, err := os.Stat(originPath); err == nil {
+				st := fi.Sys().(*syscall.Stat_t)
+				os.Chown(path, int(st.Uid), int(st.Gid))
+			}
+
+			if removePattern != `` {
+				if match, _err := regexp.MatchString(`.*\.js\.(`+removePattern+`)\.js`, f.Name()); _err != nil {
+					return _err
+				} else if match {
+					fmt.Println("Removing " + path)
+					_err = os.Remove(path)
+				}
+			}
+
+			return
+		})
 	}
 
 	return

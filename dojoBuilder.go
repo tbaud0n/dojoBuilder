@@ -9,14 +9,12 @@ import (
 )
 
 type Config struct {
-	BuildMode    bool   // Use dojo build if true
-	SrcDir       string // Absolute path of the src js dir
-	DestDir      string // Absolute path where the output files will be placed
-	BuildConfigs map[string]BuildConfig
+	BuildMode         bool   // Use dojo build if true
+	SrcDir            string // Absolute path of the src js dir
+	DestDir           string // Absolute path where the output files will be placed
+	DojoConfigRelPath string // Path (relative to SrcDir) of the file containing the dojoConfig JSON
+	BuildConfigs      map[string]BuildConfig
 }
-
-// dojoConfigRelPath is the path of the file containing the dojoConfig JSON. It is  relative to SrcDir.
-const dojoConfigRelPath = "app/dojoConfig.json"
 
 func Run(c *Config, names []string) (err error) {
 	if c.DestDir == "" {
@@ -39,7 +37,7 @@ func Run(c *Config, names []string) (err error) {
 }
 
 func GetDojoConfig(c *Config) (template.JS, error) {
-	dojoConfigFilePath := fmt.Sprintf("%s/%s", c.DestDir, dojoConfigRelPath)
+	dojoConfigFilePath := fmt.Sprintf("%s/%s", c.DestDir, c.DojoConfigRelPath)
 
 	b, err := ioutil.ReadFile(dojoConfigFilePath)
 
