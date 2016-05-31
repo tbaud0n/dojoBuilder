@@ -162,7 +162,13 @@ func build(c *Config, names []string) (err error) {
 func executeBuildProfile(c *Config, profilePath string) (err error) {
 	buildScriptPath := c.SrcDir + "/util/buildscripts/build.sh"
 
-	cmd := exec.Command(buildScriptPath, "--profile", profilePath)
+	args := []string{"--profile", profilePath}
+
+	if c.Bin != "" {
+		args = append(args, []string{"--bin", c.Bin})
+	}
+
+	cmd := exec.Command(buildScriptPath, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return

@@ -1,0 +1,31 @@
+{
+    "async": true,
+    "baseUrl": "/pkg/",
+    "packages": [
+        {
+            "name" : "dojo",
+            "location" : "dojo"
+        },
+        {
+            "name" : "dijit",
+            "location" : "dijit"
+        },
+        {
+            "name" : "dojox",
+            "location" : "dojox"
+        },
+        {
+            "name": "geonef/jig",
+            "location": "geonef/jig"
+        },
+        {
+            "name" : "app",
+            "location" : "app"
+        }
+    ],
+    has: {
+        "config-tlmSiblingOfDojo":0
+    },
+    "isDebug": true,
+    "locale": "fr-fr"
+}

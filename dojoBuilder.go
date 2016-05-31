@@ -12,6 +12,7 @@ type Config struct {
 	BuildMode         bool   // Use dojo build if true
 	SrcDir            string // Absolute path of the src js dir
 	DestDir           string // Absolute path where the output files will be placed
+	Bin               string // Name of the bin used to build dojo (optional) [node, node-debug, java]
 	installDir        string // Private directory to copy src for build mode
 	DojoConfigRelPath string // Path (relative to SrcDir) of the file containing the dojoConfig JSON
 	BuildConfigs      map[string]BuildConfig
