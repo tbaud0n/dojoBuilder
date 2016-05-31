@@ -47,15 +47,26 @@ func SetExcludeDirFunc(exDirFunc ExcludeDirFunc) { excludeDirFunc = exDirFunc }
 func SetExcludeFileFunc(exFileFunc ExcludeFileFunc) { excludeFileFunc = exFileFunc }
 
 func installFiles(c *Config) (err error) {
+	c.installDir = c.DestDir
+
+	if c.BuildMode {
+		c.installDir = c.DestDir + "/tmp"
+		if _, err = os.Stat(c.installDir); os.IsNotExist(err) {
+			if err = os.MkdirAll(c.installDir, 0754); err != nil {
+				return
+			}
+		}
+	}
+
 	// Delete obsolete symlink and folders
-	err = filepath.Walk(c.DestDir, func(path string, f os.FileInfo, err error) (_err error) {
+	err = filepath.Walk(c.installDir, func(path string, f os.FileInfo, err error) (_err error) {
 		var forceRemove bool
 
-		if path == c.DestDir {
+		if path == c.installDir {
 			return nil
 		}
 
-		srcPath := c.SrcDir + path[len(c.DestDir):]
+		srcPath := c.SrcDir + path[len(c.installDir):]
 
 		if f.IsDir() {
 			if excludeDirFunc(srcPath, f) {
@@ -84,7 +95,7 @@ func installFiles(c *Config) (err error) {
 			return nil
 		}
 
-		newPath := c.DestDir + path[len(c.SrcDir):]
+		newPath := c.installDir + path[len(c.SrcDir):]
 		if _, err = os.Stat(newPath); err == nil {
 			return
 		}
@@ -96,7 +107,7 @@ func installFiles(c *Config) (err error) {
 			}
 		} else if excludeFileFunc(path, f) {
 			return
-		} else if _err = os.Link(path, c.DestDir+path[len(c.SrcDir):]); _err != nil {
+		} else if _err = os.Link(path, c.installDir+path[len(c.SrcDir):]); _err != nil {
 			return
 		}
 

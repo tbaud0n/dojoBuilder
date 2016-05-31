@@ -12,6 +12,7 @@ type Config struct {
 	BuildMode         bool   // Use dojo build if true
 	SrcDir            string // Absolute path of the src js dir
 	DestDir           string // Absolute path where the output files will be placed
+	installDir        string // Private directory to copy src for build mode
 	DojoConfigRelPath string // Path (relative to SrcDir) of the file containing the dojoConfig JSON
 	BuildConfigs      map[string]BuildConfig
 }
@@ -27,10 +28,12 @@ func Run(c *Config, names []string) (err error) {
 		}
 	}
 
+	if err = installFiles(c); err != nil {
+		return
+	}
+
 	if c.BuildMode {
 		err = build(c, names)
-	} else {
-		err = installFiles(c)
 	}
 
 	return

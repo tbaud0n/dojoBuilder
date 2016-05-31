@@ -59,6 +59,7 @@ func (f Feature) MarshalJSON() ([]byte, error) {
 }
 
 func (c *Config) generateBuildProfile(name string) (profileFullPath string, err error) {
+	installDir := c.DestDir + "/tmp"
 	bc, ok := c.BuildConfigs[name]
 	if !ok {
 		return "", errors.New("No build config found with name '" + name + "'")
@@ -68,16 +69,17 @@ func (c *Config) generateBuildProfile(name string) (profileFullPath string, err 
 		bc.Action = "release"
 	}
 
-	profilePath := c.SrcDir + "/profiles/"
+	profilePath := installDir + "/profiles/"
 	os.MkdirAll(profilePath, 0754)
 
 	profileFullPath = profilePath + name + ".profile.js"
 
-	bc.BasePath = "../"
+	bc.BasePath = ".."
 
-	if bc.ReleaseDir, err = filepath.Rel(c.SrcDir+`/`+bc.BasePath+"__fakeFile__", c.DestDir); err != nil {
-		return "", err
-	}
+	bc.ReleaseDir = c.DestDir
+	// if bc.ReleaseDir, err = filepath.Rel(c.SrcDir+`/`+bc.BasePath+"__fakeFile__", c.DestDir); err != nil {
+	// 	return "", err
+	// }
 
 	j, err := json.Marshal(bc)
 	if err != nil {
@@ -149,13 +151,16 @@ func build(c *Config, names []string) (err error) {
 
 			return
 		})
+		if c.installDir != "" {
+			os.Remove(c.installDir)
+		}
 	}
 
 	return
 }
 
 func executeBuildProfile(c *Config, profilePath string) (err error) {
-	buildScriptPath := c.SrcDir + "/util/buildscripts/build.sh"
+	buildScriptPath := c.installDir + "/util/buildscripts/build.sh"
 
 	cmd := exec.Command(buildScriptPath, "--profile", profilePath)
 	stdout, err := cmd.StdoutPipe()
