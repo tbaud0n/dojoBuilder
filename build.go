@@ -160,7 +160,7 @@ func build(c *Config, names []string) (err error) {
 }
 
 func executeBuildProfile(c *Config, profilePath string) (err error) {
-	buildScriptPath := c.installDir + "/util/buildscripts/build.sh"
+	buildScriptPath := c.SrcDir + "/util/buildscripts/build.sh"
 
 	cmd := exec.Command(buildScriptPath, "--profile", profilePath)
 	stdout, err := cmd.StdoutPipe()
