@@ -165,7 +165,7 @@ func executeBuildProfile(c *Config, profilePath string) (err error) {
 	args := []string{"--profile", profilePath}
 
 	if c.Bin != "" {
-		args = append(args, []string{"--bin", c.Bin})
+		args = append(args, "--bin", c.Bin)
 	}
 
 	cmd := exec.Command(buildScriptPath, args...)
