@@ -25,7 +25,9 @@ const pageTemplate = `<!doctype html>
 {{else}}
   <script type="text/javascript" src="pkg/dojo/dojo.js"></script>
 {{end}}
-  <script type="text/javascript">require(['app/main']);</script>
+  <script type="text/javascript">require(['app/main'], function(main) {
+    main.showDialog({buildMode:{{.buildMode}}});
+  });</script>
 </body>
 </html>`
 
@@ -46,7 +48,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	t := template.Must(template.New("page").Funcs(templateFuncs).Parse(pageTemplate))
 
-	t.Execute(w, nil)
+	t.Execute(w, map[string]interface{}{
+		"buildMode": builderConfig.BuildMode,
+	})
 }
 
 func init() {

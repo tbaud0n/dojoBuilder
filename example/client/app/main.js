@@ -1,11 +1,22 @@
 define([
     "dijit/Dialog",
+    "dojo/dom-construct",
     'dojo/domReady!'
 ], function(
-    Dialog
+    Dialog, domConstruct
 ) {
-    new Dialog({
-        title: "YEAH !!!",
-        content: "<h1>It works ;-)</h1>"
-    }).show();
+    return {
+        showDialog: function(params) {
+            var content = "<div>It works in :</div>";
+            if (params.buildMode) {
+                content += "<h1>BUILD mode ;-)</h1>";
+            } else {
+                content += "<h1>non-built mode ;-)</h1>";
+            }
+            new Dialog({
+                title: "YEAH !!!",
+                content: domConstruct.toDom(content)
+            }).show();
+        }
+    };
 });
