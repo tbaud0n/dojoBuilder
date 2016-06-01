@@ -12,7 +12,6 @@ for process in {"dojo","dijit","dojox","util"}; do
     fi
 done
 
-
 # Local variables:
 # coding: utf-8
 # End:

@@ -1,13 +1,11 @@
-define("app/main", [
+define([
     "dijit/Dialog",
-    "geonef/jig/util/makeDOM",
     'dojo/domReady!'
 ], function(
-    Dialog, makeDOM
+    Dialog
 ) {
     new Dialog({
-        style: "min-width:120px;",
         title: "YEAH !!!",
-        content: makeDOM(['div', {}, "It works with geonef"])
+        content: "<h1>It works ;-)</h1>"
     }).show();
 });

@@ -15,10 +15,6 @@
             "location" : "dojox"
         },
         {
-            "name": "geonef/jig",
-            "location": "geonef/jig"
-        },
-        {
             "name" : "app",
             "location" : "app"
         }

@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -18,7 +19,7 @@ type Config struct {
 	BuildConfigs      map[string]BuildConfig
 }
 
-func Run(c *Config, names []string) (err error) {
+func Run(c *Config, names []string, reset bool) (err error) {
 	if c.DestDir == "" {
 		return errors.New("No DestDir defined in config")
 	}
@@ -27,6 +28,15 @@ func Run(c *Config, names []string) (err error) {
 		if err = os.MkdirAll(c.DestDir, 0754); err != nil {
 			return
 		}
+	}
+
+	if reset {
+		filepath.Walk(c.DestDir, func(path string, f os.FileInfo, err error) (_err error) {
+			if path != c.DestDir {
+				_err = os.RemoveAll(path)
+			}
+			return
+		})
 	}
 
 	if err = installFiles(c); err != nil {

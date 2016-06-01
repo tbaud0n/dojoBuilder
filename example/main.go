@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"flag"
+
 	"github.com/tbaud0n/dojoBuilder"
 )
 
@@ -18,7 +20,11 @@ const pageTemplate = `<!doctype html>
 </head>
 <body class="claro">
   <script type="text/javascript">var dojoConfig = {{getDojoConfig}};</script>
+{{if .buildMode}}
   <script type="text/javascript" src="pkg/app/main.js"></script>
+{{else}}
+  <script type="text/javascript" src="pkg/dojo/dojo.js"></script>
+{{end}}
   <script type="text/javascript">require(['app/main']);</script>
 </body>
 </html>`
@@ -49,8 +55,12 @@ func init() {
 		log.Fatal(err)
 	}
 
+	buildMode := flag.Bool("buildMode", false, "Use build mode of dojoBuilder")
+
+	flag.Parse()
+
 	builderConfig = &dojoBuilder.Config{
-		BuildMode:         true,
+		BuildMode:         *buildMode,
 		SrcDir:            dir + "/client",
 		DestDir:           dir + "/pkg",
 		DojoConfigRelPath: "app/dojoConfig.json",
@@ -62,12 +72,11 @@ func init() {
 					dojoBuilder.Package{Name: "dojo", Location: "dojo"},
 					dojoBuilder.Package{Name: "dijit", Location: "dijit"},
 					dojoBuilder.Package{Name: "dojox", Location: "dojox"},
-					dojoBuilder.Package{Name: "geonef/jig", Location: "geonef/jig"},
 					dojoBuilder.Package{Name: "app", Location: "app"},
 				},
 				Layers: map[string]dojoBuilder.Layer{
 					"app/main": dojoBuilder.Layer{
-						Include:    []string{"dojo/dojo", "dijit/dijit", "geonef/jig", "app/main"},
+						Include:    []string{"dojo/dojo", "dijit/dijit", "app/main"},
 						CustomBase: true,
 						Boot:       true,
 					},
@@ -93,7 +102,7 @@ func init() {
 
 func main() {
 
-	if err := dojoBuilder.Run(builderConfig, nil); err != nil {
+	if err := dojoBuilder.Run(builderConfig, nil, true); err != nil {
 		log.Fatal(err)
 	}
 	http.HandleFunc("/", handler)
