@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -20,11 +21,7 @@ const pageTemplate = `<!doctype html>
 </head>
 <body class="claro">
   <script type="text/javascript">var dojoConfig = {{getDojoConfig}};</script>
-{{if .buildMode}}
-  <script type="text/javascript" src="pkg/app/main.js"></script>
-{{else}}
   <script type="text/javascript" src="pkg/dojo/dojo.js"></script>
-{{end}}
   <script type="text/javascript">require(['app/main'], function(main) {
     main.showDialog({buildMode:{{.buildMode}}});
   });</script>
@@ -79,7 +76,7 @@ func init() {
 					dojoBuilder.Package{Name: "app", Location: "app"},
 				},
 				Layers: map[string]dojoBuilder.Layer{
-					"app/main": dojoBuilder.Layer{
+					"dojo/dojo": dojoBuilder.Layer{
 						Include:    []string{"dojo/dojo", "dijit/dijit", "app/main"},
 						CustomBase: true,
 						Boot:       true,
@@ -90,15 +87,8 @@ func init() {
 				Mini:              true,
 				StripConsole:      "warn",
 				SelectorEngine:    "lite",
-				StaticHasFeatures: map[string]dojoBuilder.Feature{
-				// "dojo-trace-api":        false,
-				// "dojo-log-api":          false,
-				// "dojo-publish-privates": false,
-				// "dojo-sync-loader":      false,
-				// "dojo-xhr-factory":      false,
-				// "dojo-test-sniff":       false,
-				},
-				UseSourceMaps: false,
+				StaticHasFeatures: map[string]dojoBuilder.Feature{},
+				UseSourceMaps:     false,
 			},
 		},
 	}
@@ -106,10 +96,16 @@ func init() {
 
 func main() {
 
+	// Set the exclude functions which define the files and folders
+	// that have to be ignored during the install process
+	dojoBuilder.SetExcludeDirFunc(dojoBuilder.DefaultExcludeDirFunc)
+	dojoBuilder.SetExcludeFileFunc(dojoBuilder.DefaultExcludeFileFunc)
+
 	if err := dojoBuilder.Run(builderConfig, nil, true); err != nil {
 		log.Fatal(err)
 	}
 	http.HandleFunc("/", handler)
 	http.Handle("/pkg/", http.StripPrefix("/pkg/", http.FileServer(http.Dir(builderConfig.DestDir))))
+	fmt.Printf("\nHTTP server is running.\nPlease visit http://127.0.0.1:8080 to see the result.\n")
 	http.ListenAndServe(":8080", nil)
 }
