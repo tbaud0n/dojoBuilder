@@ -6,47 +6,29 @@ import (
 	"syscall"
 )
 
-// ExcludeDirFunc is called for non-built install
-// It allows ignore some folder when linking source files to DestDir
-type ExcludeDirFunc func(path string, f os.FileInfo) bool
+// DefaultInstallExcludeFunc skips .git folder, .gitignore  and .gitattributes files
+var DefaultInstallExcludeFunc = func(path string, f os.FileInfo) bool {
+	var skippedFiles []string = []string{".gitignore", ".gitattributes"}
+	var skippedDirs []string = []string{".git"}
 
-// ExcludeFileFunc is called for non-built install
-// It allows ignore some files when linking source files to DestDir
-type ExcludeFileFunc func(path string, f os.FileInfo) bool
+	var skipped []string
 
-var (
-	excludeDirFunc ExcludeDirFunc = func(path string, f os.FileInfo) bool {
-		return false
-	}
-	excludeFileFunc ExcludeFileFunc = func(path string, f os.FileInfo) bool {
-		return false
+	if f.IsDir() {
+		skipped = skippedDirs
+	} else {
+		skipped = skippedFiles
 	}
 
-	// DefaultExcludeDirFunc skips .git folder when installing dojo with non-built config
-	DefaultExcludeDirFunc = func(path string, f os.FileInfo) (skip bool) {
-		skip = (f.Name() == ".git")
-
-		return
-	}
-
-	DefaultExcludeFileFunc = func(path string, f os.FileInfo) bool {
-		var skippedFiles []string = []string{".gitignore", ".gitattributes"}
-
-		for _, skippedFile := range skippedFiles {
-			if skippedFile == f.Name() {
-				return true
-			}
+	for _, skippedFile := range skippedFiles {
+		if skippedFile == f.Name() {
+			return true
 		}
-
-		return false
 	}
-)
 
-func SetExcludeDirFunc(exDirFunc ExcludeDirFunc) { excludeDirFunc = exDirFunc }
+	return false
+}
 
-func SetExcludeFileFunc(exFileFunc ExcludeFileFunc) { excludeFileFunc = exFileFunc }
-
-func installFiles(c *Config) (err error) {
+func (c *Config) installFiles() (err error) {
 
 	// Delete obsolete symlink and folders
 	err = filepath.Walk(c.DestDir, func(path string, f os.FileInfo, err error) (_err error) {
@@ -58,11 +40,7 @@ func installFiles(c *Config) (err error) {
 
 		srcPath := c.SrcDir + path[len(c.DestDir):]
 
-		if f.IsDir() {
-			if excludeDirFunc(srcPath, f) {
-				forceRemove = true
-			}
-		} else if excludeFileFunc(srcPath, f) {
+		if excludeFunc(srcPath, f) {
 			forceRemove = true
 		}
 
@@ -89,14 +67,18 @@ func installFiles(c *Config) (err error) {
 		if _, err = os.Stat(newPath); err == nil {
 			return
 		}
-		if f.IsDir() {
-			if excludeDirFunc(path, f) {
+
+		isDir := f.IsDir()
+
+		if excludeFunc(path, f) {
+			if isDir {
 				return filepath.SkipDir
-			} else if _err = os.Mkdir(newPath, 0754); _err != nil {
+			}
+			return
+		} else if isDir {
+			if _err = os.Mkdir(newPath, 0754); _err != nil {
 				return
 			}
-		} else if excludeFileFunc(path, f) {
-			return
 		} else if _err = os.Link(path, c.DestDir+path[len(c.SrcDir):]); _err != nil {
 			return
 		}

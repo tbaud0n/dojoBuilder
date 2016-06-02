@@ -18,6 +18,18 @@ type Config struct {
 	BuildConfigs      map[string]BuildConfig
 }
 
+// ExcludeFunc is called
+// It allows ignore some folder when linking source files to DestDir
+type ExcludeFunc func(path string, f os.FileInfo) bool
+
+var (
+	excludeFunc ExcludeFunc = func(path string, f os.FileInfo) bool {
+		return false
+	}
+)
+
+func SetExcludeFunc(exFunc ExcludeFunc) { excludeFunc = exFunc }
+
 func Run(c *Config, names []string, reset bool) (err error) {
 	if c.DestDir == "" {
 		return errors.New("No DestDir defined in config")
@@ -39,9 +51,9 @@ func Run(c *Config, names []string, reset bool) (err error) {
 	}
 
 	if c.BuildMode {
-		err = build(c, names)
+		err = c.build(names)
 	} else {
-		err = installFiles(c)
+		err = c.installFiles()
 	}
 
 	return

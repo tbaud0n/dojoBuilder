@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"syscall"
 	"text/template"
 )
@@ -75,7 +74,7 @@ func (c *Config) generateBuildProfile(name string) (profileFullPath string, err 
 
 	bc.BasePath = ".."
 
-	bc.ReleaseDir = c.DestDir + "/tmp"
+	bc.ReleaseDir = c.DestDir + "/dojoBuilderTMP"
 
 	j, err := json.Marshal(bc)
 	if err != nil {
@@ -93,7 +92,7 @@ func (c *Config) generateBuildProfile(name string) (profileFullPath string, err 
 	return profileFullPath, err
 }
 
-func build(c *Config, names []string) (err error) {
+func (c *Config) build(names []string) (err error) {
 	var profilePath string
 
 	if len(names) == 0 {
@@ -110,40 +109,41 @@ func build(c *Config, names []string) (err error) {
 			return
 		}
 
-		if err = executeBuildProfile(c, profilePath); err != nil {
+		if err = c.executeBuildProfile(profilePath); err != nil {
 			return
 		}
 
 		bc, _ := c.BuildConfigs[n]
 
-		var removePattern, sep string
+		filepath.Walk(bc.ReleaseDir, func(path string, f os.FileInfo, err error) (_err error) {
+			var keep bool
+			var layerNames []string
 
-		if bc.RemoveUncompressed {
-			removePattern += sep + `uncompressed`
-			sep = `|`
-		}
+			originPath := c.SrcDir + path[len(bc.ReleaseDir):]
 
-		if bc.RemoveConsoleStripped {
-			removePattern += sep + `consoleStripped`
-			sep = `|`
-		}
+			for layerName, _ := range bc.Layers {
+				layerNames = append(layerNames, layerName+".js")
+			}
 
-		filepath.Walk(c.DestDir, func(path string, f os.FileInfo, err error) (_err error) {
-			originPath := c.SrcDir + path[len(c.DestDir):]
+			if f.IsDir() && f.Name() == "resources" {
+				keep = true
+			} else if isStringInSlice(layerNames, f.Name()) {
+				CopyFile(path, c.DestDir+"/"+f.Name())
+			}
 
 			if fi, err := os.Stat(originPath); err == nil {
 				st := fi.Sys().(*syscall.Stat_t)
 				os.Chown(path, int(st.Uid), int(st.Gid))
 			}
 
-			if removePattern != `` {
-				if match, _err := regexp.MatchString(`.*\.js\.(`+removePattern+`)\.js`, f.Name()); _err != nil {
-					return _err
-				} else if match {
-					fmt.Println("Removing " + path)
-					_err = os.Remove(path)
-				}
-			}
+			// if removePattern != `` {
+			// 	if match, _err := regexp.MatchString(`.*\.js\.(`+removePattern+`)\.js`, f.Name()); _err != nil {
+			// 		return _err
+			// 	} else if match {
+			// 		fmt.Println("Removing " + path)
+			// 		_err = os.Remove(path)
+			// 	}
+			// }
 
 			return
 		})
@@ -152,7 +152,7 @@ func build(c *Config, names []string) (err error) {
 	return
 }
 
-func executeBuildProfile(c *Config, profilePath string) (err error) {
+func (c *Config) executeBuildProfile(profilePath string) (err error) {
 	buildScriptPath := c.SrcDir + "/util/buildscripts/build.sh"
 
 	args := []string{"--profile", profilePath}
