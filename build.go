@@ -57,6 +57,27 @@ func (f Feature) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v)
 }
 
+var (
+	buildExcludeFunc ExcludeFunc = func(path string, f os.FileInfo) (bool, error) {
+		return false, nil
+	}
+
+	// DefaultBuildExcludeFunc skips uncompressed and consoleStripped js files
+	DefaultBuildExcludeFunc = func(path string, f os.FileInfo) (bool, error) {
+		var skippedFilesPatterns []string = []string{`.*\.js\.(uncompressed|consoleStripped)\.js`}
+		var skippedDirsPatterns []string = []string{}
+
+		if f.IsDir() {
+			return IsMatchSliceMember(skippedDirsPatterns, path)
+		}
+
+		return IsMatchSliceMember(skippedFilesPatterns, path)
+
+	}
+)
+
+func SetBuildExcludeFunc(exFunc ExcludeFunc) { buildExcludeFunc = exFunc }
+
 func (c *Config) generateBuildProfile(name string) (profileFullPath string, err error) {
 	bc, ok := c.BuildConfigs[name]
 	if !ok {
@@ -114,39 +135,39 @@ func (c *Config) build(names []string) (err error) {
 		}
 
 		bc, _ := c.BuildConfigs[n]
+		bc.ReleaseDir = c.DestDir + "/dojoBuilderTMP"
 
-		filepath.Walk(bc.ReleaseDir, func(path string, f os.FileInfo, err error) (_err error) {
-			var keep bool
-			var layerNames []string
-
-			originPath := c.SrcDir + path[len(bc.ReleaseDir):]
-
-			for layerName, _ := range bc.Layers {
-				layerNames = append(layerNames, layerName+".js")
+		err = filepath.Walk(bc.ReleaseDir, func(path string, f os.FileInfo, err error) (_err error) {
+			if path == bc.ReleaseDir {
+				return
 			}
 
-			if f.IsDir() && f.Name() == "resources" {
-				keep = true
-			} else if isStringInSlice(layerNames, f.Name()) {
-				CopyFile(path, c.DestDir+"/"+f.Name())
+			isDir := f.IsDir()
+			dest := c.DestDir + path[len(bc.ReleaseDir):]
+
+			if skip, err := buildExcludeFunc(path, f); err != nil {
+				return err
+			} else if skip {
+				if isDir {
+					return filepath.SkipDir
+				}
+				return
+			} else if isDir {
+				if _err = os.Mkdir(dest, 0754); _err != nil {
+					return
+				}
+			} else if _err = CopyFile(path, dest); _err != nil {
+				return
 			}
 
-			if fi, err := os.Stat(originPath); err == nil {
-				st := fi.Sys().(*syscall.Stat_t)
-				os.Chown(path, int(st.Uid), int(st.Gid))
-			}
+			st := f.Sys().(*syscall.Stat_t)
 
-			// if removePattern != `` {
-			// 	if match, _err := regexp.MatchString(`.*\.js\.(`+removePattern+`)\.js`, f.Name()); _err != nil {
-			// 		return _err
-			// 	} else if match {
-			// 		fmt.Println("Removing " + path)
-			// 		_err = os.Remove(path)
-			// 	}
-			// }
+			os.Chown(dest, int(st.Uid), int(st.Gid))
 
 			return
 		})
+
+		os.RemoveAll(bc.ReleaseDir)
 	}
 
 	return

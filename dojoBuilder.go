@@ -20,15 +20,7 @@ type Config struct {
 
 // ExcludeFunc is called
 // It allows ignore some folder when linking source files to DestDir
-type ExcludeFunc func(path string, f os.FileInfo) bool
-
-var (
-	excludeFunc ExcludeFunc = func(path string, f os.FileInfo) bool {
-		return false
-	}
-)
-
-func SetExcludeFunc(exFunc ExcludeFunc) { excludeFunc = exFunc }
+type ExcludeFunc func(path string, f os.FileInfo) (bool, error)
 
 func Run(c *Config, names []string, reset bool) (err error) {
 	if c.DestDir == "" {

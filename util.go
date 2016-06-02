@@ -4,16 +4,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 )
 
-func isStringInSlice(slice []string, s string) bool {
-	for st, _ := range slice {
-		if st == s {
-			return true
+func IsMatchSliceMember(slice []string, st string) (bool, error) {
+	for _, pattern := range slice {
+		match, err := regexp.MatchString(pattern, st)
+		if err != nil {
+			return false, err
+		} else if match {
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 func CopyDir(src string, dest string) (err error) {
@@ -26,9 +30,9 @@ func CopyDir(src string, dest string) (err error) {
 	if !sfi.IsDir() {
 		return fmt.Errorf("CopyFile cannot copy a file %s", src)
 	} else if sfi.Mode()&os.ModeSymlink != 0 {
-		linkSrc, err = os.Readlink(src)
+		linkSrc, err := os.Readlink(src)
 		if err != nil {
-			return
+			return err
 		}
 		return CopyDir(linkSrc, dest)
 	}
@@ -77,9 +81,9 @@ func CopyFile(src, dest string) (err error) {
 		if sfi.IsDir() {
 			return fmt.Errorf("CopyFile cannot copy a directory %s", src)
 		} else if sfi.Mode()&os.ModeSymlink != 0 {
-			linkSrc, err = os.Readlink(src)
+			linkSrc, err := os.Readlink(src)
 			if err != nil {
-				return
+				return err
 			}
 			return CopyFile(linkSrc, dest)
 		} else {

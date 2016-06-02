@@ -10,6 +10,8 @@ import (
 
 	"flag"
 
+	"regexp"
+
 	"github.com/tbaud0n/dojoBuilder"
 )
 
@@ -98,8 +100,24 @@ func main() {
 
 	// Set the exclude functions which define the files and folders
 	// that have to be ignored during the install process
-	dojoBuilder.SetExcludeDirFunc(dojoBuilder.DefaultExcludeDirFunc)
-	dojoBuilder.SetExcludeFileFunc(dojoBuilder.DefaultExcludeFileFunc)
+	dojoBuilder.SetInstallExcludeFunc(dojoBuilder.DefaultInstallExcludeFunc)
+	dojoBuilder.SetBuildExcludeFunc(func(path string, f os.FileInfo) (bool, error) {
+		var skippedFilesPatterns []string = []string{`.*\.js\.(uncompressed|consoleStripped)\.js`}
+		var skippedDirsPatterns []string = []string{`.*dojox$`}
+
+		if f.IsDir() {
+			return dojoBuilder.IsMatchSliceMember(skippedDirsPatterns, path)
+		}
+
+		if match, err := regexp.MatchString(`.*\/app\/\w+\.\w+$`, path); err != nil {
+			return false, err
+		} else if match {
+			return f.Name() != "dojoConfig.json", nil
+		}
+
+		return dojoBuilder.IsMatchSliceMember(skippedFilesPatterns, path)
+
+	})
 
 	if err := dojoBuilder.Run(builderConfig, nil, true); err != nil {
 		log.Fatal(err)

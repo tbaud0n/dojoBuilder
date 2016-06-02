@@ -6,27 +6,25 @@ import (
 	"syscall"
 )
 
-// DefaultInstallExcludeFunc skips .git folder, .gitignore  and .gitattributes files
-var DefaultInstallExcludeFunc = func(path string, f os.FileInfo) bool {
-	var skippedFiles []string = []string{".gitignore", ".gitattributes"}
-	var skippedDirs []string = []string{".git"}
-
-	var skipped []string
-
-	if f.IsDir() {
-		skipped = skippedDirs
-	} else {
-		skipped = skippedFiles
+var (
+	installExcludeFunc ExcludeFunc = func(path string, f os.FileInfo) (bool, error) {
+		return false, nil
 	}
 
-	for _, skippedFile := range skippedFiles {
-		if skippedFile == f.Name() {
-			return true
+	// DefaultInstallExcludeFunc skips .git folder, .gitignore  and .gitattributes files
+	DefaultInstallExcludeFunc = func(path string, f os.FileInfo) (bool, error) {
+		var skippedFilesPatterns []string = []string{`\.gitignore`, `\.gitattributes`}
+		var skippedDirsPatterns []string = []string{`\.git`}
+
+		if f.IsDir() {
+			return IsMatchSliceMember(skippedDirsPatterns, path)
 		}
-	}
 
-	return false
-}
+		return IsMatchSliceMember(skippedFilesPatterns, path)
+	}
+)
+
+func SetInstallExcludeFunc(exFunc ExcludeFunc) { installExcludeFunc = exFunc }
 
 func (c *Config) installFiles() (err error) {
 
@@ -40,8 +38,8 @@ func (c *Config) installFiles() (err error) {
 
 		srcPath := c.SrcDir + path[len(c.DestDir):]
 
-		if excludeFunc(srcPath, f) {
-			forceRemove = true
+		if forceRemove, _err = installExcludeFunc(srcPath, f); _err != nil {
+			return _err
 		}
 
 		if _, err = os.Stat(srcPath); os.IsNotExist(err) || forceRemove {
@@ -70,17 +68,19 @@ func (c *Config) installFiles() (err error) {
 
 		isDir := f.IsDir()
 
-		if excludeFunc(path, f) {
+		if skip, _err := installExcludeFunc(path, f); _err != nil {
+			return err
+		} else if skip {
 			if isDir {
 				return filepath.SkipDir
 			}
-			return
+			return nil
 		} else if isDir {
 			if _err = os.Mkdir(newPath, 0754); _err != nil {
-				return
+				return _err
 			}
 		} else if _err = os.Link(path, c.DestDir+path[len(c.SrcDir):]); _err != nil {
-			return
+			return _err
 		}
 
 		st := f.Sys().(*syscall.Stat_t)
