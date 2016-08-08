@@ -79,8 +79,20 @@ func (c *Config) installFiles() (err error) {
 			if _err = os.Mkdir(newPath, 0754); _err != nil {
 				return _err
 			}
-		} else if _err = os.Link(path, c.DestDir+path[len(c.SrcDir):]); _err != nil {
-			return _err
+		} else if f.Mode()&os.ModeSymlink == os.ModeSymlink {
+			origPath, _err := filepath.EvalSymlinks(path)
+			if _err != nil {
+				return _err
+			}
+
+			// fmt.Printf("Path : %s\nPoints to : %s\n\n", path, origPath)
+			if _err = os.Symlink(origPath, c.DestDir+path[len(c.SrcDir):]); _err != nil {
+				return _err
+			}
+		} else {
+			if _err = os.Link(path, c.DestDir+path[len(c.SrcDir):]); _err != nil {
+				return _err
+			}
 		}
 
 		st := f.Sys().(*syscall.Stat_t)
