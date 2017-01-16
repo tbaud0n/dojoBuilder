@@ -18,9 +18,16 @@ type Config struct {
 	BuildConfigs      map[string]BuildConfig
 }
 
+type HookFunc func() error
+
+func SetBeforeHookFunc(f HookFunc) { beforeHook = f }
+func SetAfterHookFunc(f HookFunc)  { afterHook = f }
+
 // ExcludeFunc is called
 // It allows ignore some folder when linking source files to DestDir
 type ExcludeFunc func(path string, f os.FileInfo) (bool, error)
+
+var beforeHook, afterHook HookFunc
 
 func Run(c *Config, names []string, reset bool) (err error) {
 	if c.DestDir == "" {
@@ -42,10 +49,26 @@ func Run(c *Config, names []string, reset bool) (err error) {
 		})
 	}
 
+	if beforeHook != nil {
+		if err = beforeHook(); err != nil {
+			return
+		}
+	}
+
 	if c.BuildMode {
 		err = c.build(names)
 	} else {
 		err = c.installFiles()
+	}
+
+	if err != nil {
+		return
+	}
+
+	if afterHook != nil {
+		if err = afterHook(); err != nil {
+			return
+		}
 	}
 
 	return
