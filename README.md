@@ -1,5 +1,5 @@
 # DojoBuilder
-DojoBuilder is a tool to automate the build of [dojo] (https://dojotoolkit.org/) based projects in Golang.
+DojoBuilder is a tool to automate the build of [Dojo Toolkit](https://dojotoolkit.org/) based projects in Golang.
 
 # Installation
 Make sur you have a working Go environment.
